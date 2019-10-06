@@ -109,7 +109,18 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				TransportPort dstPort = udp.getDestinationPort();
 				 
 				/* Your logic here! */
-	            }
+			}
+			else if (ip_pkt.getProtocol() == IpProtocol.ICMP) {
+				ICMP icmp = (ICMP) ip_pkt.getPayload();
+				IPacket packet = ip_pkt.getPayload();
+
+				/* Various getters and setters are exposed in TCP */
+				IPv4Address dstAddress = ip_pkt.getDestinationAddress();
+				IPv4Address srcAddress = ip_pkt.getSourceAddress();
+				//short flags = tcp.getFlags();
+				logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
+
+			}
 
 		}
 	}
