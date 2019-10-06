@@ -27,6 +27,8 @@ import org.python.modules._hashlib;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.crypto.Mac;
+
 
 /**
  * Created by pravein on 28/9/17.
@@ -76,6 +78,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			logger.info("Getting ARP for: " + targetProtocolAddress.toString());
 
 			logger.info("Requestor : " + srcIp + " from : " + pi.getMatch().get(MatchField.IN_PORT).getPortNumber());
+
+			logger.info("Asking for : "+ arpRequest.getTargetProtocolAddress());
 
 			proxyArpReply(sw, pi, cntx);
 			return Command.STOP;
@@ -224,11 +228,12 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 								.setHardwareAddressLength((byte) 6)
 								.setProtocolAddressLength((byte) 4)
 								.setOpCode(ARP.OP_REPLY)
-								.setSenderHardwareAddress(eth.getDestinationMACAddress())
+								.setSenderHardwareAddress(getMappedMACAddress(arpRequest.getTargetProtocolAddress(), eth.getDestinationMACAddress()))
 								.setSenderProtocolAddress(arpRequest.getTargetProtocolAddress())
 								.setTargetHardwareAddress(eth.getSourceMACAddress())
 								.setTargetProtocolAddress(arpRequest.getSenderProtocolAddress()));
 
+		//eth.getDestinationMACAddress()
 		// push ARP reply out
 		pushPacket(arpReply, sw, OFBufferId.NO_BUFFER, OFPort.ANY, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)), cntx, true);
 		logger.info("Sending packet from {} with MAC Address {} with destination IP {} searching for MAC Address {}",
@@ -236,6 +241,14 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		logger.info("proxy ARP reply pushed as {}", arpRequest.getSenderProtocolAddress().toString());
 
 		return;
+	}
+
+	protected MacAddress getMappedMACAddress(IPv4Address targetAddress, MacAddress defaultMacAddress){
+    	String addressString = targetAddress.toString();
+    	String macAddressString = RouterInterfaceMacMap.containsKey(addressString)?
+				RouterInterfaceMacMap.get(addressString) : defaultMacAddress.toString();
+		MacAddress resultAddress = MacAddress.of(macAddressString);
+		return resultAddress;
 	}
 
 
