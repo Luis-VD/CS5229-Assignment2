@@ -1,31 +1,32 @@
 package net.floodlightcontroller.natcs5229;
 
 import net.floodlightcontroller.core.FloodlightContext;
-import net.floodlightcontroller.core.IListener;
 import net.floodlightcontroller.core.IOFMessageListener;
 import net.floodlightcontroller.core.IOFSwitch;
 import net.floodlightcontroller.core.module.FloodlightModuleContext;
 import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
-import net.floodlightcontroller.core.util.AppCookie;
+import net.floodlightcontroller.devicemanager.IDeviceService;
+import net.floodlightcontroller.devicemanager.internal.Device;
 import net.floodlightcontroller.packet.*;
 import net.floodlightcontroller.routing.IRoutingDecision;
-import net.floodlightcontroller.routing.Route;
-import net.floodlightcontroller.util.FlowModUtils;
-import org.kohsuke.args4j.CmdLineException;
+import net.floodlightcontroller.routing.RoutingDecision;
+import net.floodlightcontroller.topology.ITopologyService;
 import org.projectfloodlight.openflow.protocol.*;
 import java.io.IOException;
 import java.util.*;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import java.util.concurrent.ConcurrentSkipListSet;
 import org.projectfloodlight.openflow.protocol.action.OFAction;
-import org.projectfloodlight.openflow.protocol.match.Match;
+import org.projectfloodlight.openflow.protocol.action.OFActionOutput;
 import org.projectfloodlight.openflow.protocol.match.MatchField;
 import org.projectfloodlight.openflow.types.*;
-import org.python.modules._hashlib;
+import org.projectfloodlight.openflow.util.HexString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.crypto.Mac;
 
 
 /**
@@ -41,6 +42,9 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
     HashMap<Integer, String> IPTransMap = new HashMap<>();
     HashMap<String, OFPort> IPPortMap = new HashMap<>();
     HashMap<String, String> IPMacMap = new HashMap<>();
+	protected Map<IPAddress, Set<ARPRequest>> arpRequests;
+	protected IDeviceService deviceManager;
+	protected ITopologyService topologyManager;
 
 
     @Override
@@ -78,12 +82,12 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			System.out.println("Requestor : "+srcIp + " from : "+ pi.getMatch().get(MatchField.IN_PORT).getPortNumber());
 
 			if (arpRequest.getOpCode() == ARP.OP_REQUEST) {
-				return this.handleARPRequest(arpRequest, sw.getId(), pi.getInPort(), cntx);
+				return this.handleARPRequest(arpRequest, sw, pi, cntx);
 			}
 			
 			// Handle ARP reply.
 			if (arpRequest.getOpCode() == ARP.OP_REPLY) {
-				return this.handleARPReply(arpRequest, sw.getId(), pi.getInPort(), cntx);
+				return this.handleARPReply(arpRequest, sw, pi, cntx);
 			}
 
 		}
@@ -188,28 +192,21 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 	
 	protected class ARPRequest {
-		/** The MAC address of the source host */
-		private long sourceMACAddress;
-		/** The IP address of the source host. */
-		private long sourceIPAddress;
-		/** The MAC address of the target (destination) host. */
-		private long targetMACAddress;
-		/** The IP address of the target (destination) host. */
-		private long targetIPAddress;
-		/** The switch ID of the switch where the ARP request is received. */
+		private MacAddress sourceMACAddress;
+		private IPv4Address sourceIPAddress;
+		private MacAddress targetMACAddress;
+		private IPv4Address targetIPAddress;
 		private long switchId;
-		/** The port ID of the port where the ARP request is received. */
 		private short inPort;
-		/** The time the ARP request started. */
 		private long startTime;
 		
 		/** 
 		 * Setter for the IP address of the source host that initialized the ARP request.
 		 * 
-		 * @param sourceIPAddress The IP address of the source host.
+		 * @param sourceMACAddress The IP address of the source host.
 		 * @return <b>ARPRequest</b> The current ARPRequest object.
 		 */
-		public ARPRequest setSourceMACAddress(long sourceMACAddress) {
+		public ARPRequest setSourceMACAddress(MacAddress sourceMACAddress) {
 			this.sourceMACAddress = sourceMACAddress;
 			return this;
 		}
@@ -220,7 +217,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		 * @param sourceIPAddress The IP address of the source host.
 		 * @return <b>ARPRequest</b> The current ARPRequest object.
 		 */
-		public ARPRequest setSourceIPAddress(long sourceIPAddress) {
+		public ARPRequest setSourceIPAddress(IPv4Address sourceIPAddress) {
 			this.sourceIPAddress = sourceIPAddress;
 			return this;
 		}
@@ -231,7 +228,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		 * @param targetMACAddress The MAC address of the target (destination) host.
 		 * @return <b>ARPRequest</b> The current ARPRequest object.
 		 */
-		public ARPRequest setTargetMACAddress(long targetMACAddress) {
+		public ARPRequest setTargetMACAddress(MacAddress targetMACAddress) {
 			this.targetMACAddress = targetMACAddress;
 			return this;
 		}
@@ -242,7 +239,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		 * @param targetIPAddress The IP address of the target (destination) host.
 		 * @return <b>ARPRequest</b> The current ARPRequest object.
 		 */
-		public ARPRequest setTargetIPAddress(long targetIPAddress) {
+		public ARPRequest setTargetIPAddress(IPv4Address targetIPAddress) {
 			this.targetIPAddress = targetIPAddress;
 			return this;
 		}
@@ -285,7 +282,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		 * 
 		 * @return <b>long</b> The MAC address of the source of the ARP request. 
 		 */
-		public long getSourceMACAddress() {
+		public MacAddress getSourceMACAddress() {
 			return this.sourceMACAddress;
 		}
 		
@@ -294,7 +291,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		 * 
 		 * @return <b>long</b> The IP address of the source of the ARP request. 
 		 */
-		public long getSourceIPAddress() {
+		public IPv4Address getSourceIPAddress() {
 			return this.sourceIPAddress;
 		}
 		
@@ -303,7 +300,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		 * 
 		 * @return <b>long</b> The MAC address of the target (destination) of the ARP request. 
 		 */
-		public long getTargetMACAddress() {
+		public MacAddress getTargetMACAddress() {
 			return this.targetMACAddress;
 		}
 		
@@ -312,7 +309,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		 * 
 		 * @return <b>long</b> The IP address of the target (destination) of the ARP request. 
 		 */
-		public long getTargetIPAddress() {
+		public IPv4Address getTargetIPAddress() {
 			return this.targetIPAddress;
 		}
 		
@@ -347,15 +344,15 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 
 	
-	protected Command handleARPRequest(ARP arp, long switchId, short portId, FloodlightContext cntx) {
+	protected Command handleARPRequest(ARP arp, IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx) {
 		/* The known IP address of the ARP source. */
-		long sourceIPAddress = IPv4.toIPv4Address(arp.getSenderProtocolAddress());
+		IPv4Address sourceIPAddress = arp.getSenderProtocolAddress();
 		/* The known MAC address of the ARP source. */
-		long sourceMACAddress = Ethernet.toLong(arp.getSenderHardwareAddress());
+		MacAddress sourceMACAddress = arp.getSenderHardwareAddress();
 		/* The IP address of the (yet unknown) ARP target. */
-		long targetIPAddress = IPv4.toIPv4Address(arp.getTargetProtocolAddress());
+		IPv4Address targetIPAddress = arp.getTargetProtocolAddress();
 		/* The MAC address of the (yet unknown) ARP target. */
-		long targetMACAddress = 0;
+		MacAddress targetMACAddress;
 		
 		
 		// Check if there is an ongoing ARP process for this packet.
@@ -372,7 +369,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		
 		
 		@SuppressWarnings("unchecked")
-		Iterator<Device> diter = (Iterator<Device>) deviceManager.queryDevices(null, null, (int) targetIPAddress, null, null);	
+		Iterator<Device> diter = (Iterator<Device>) deviceManager.queryDevices(MacAddress.NONE, null, arp.getTargetProtocolAddress(), IPv6Address.NONE, DatapathId.NONE, OFPort.ZERO);
 
 		// There should be only one MAC address to the given IP address. In any case, 
 		// we return only the first MAC address found.
@@ -383,28 +380,27 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			//long age = System.currentTimeMillis() - device.getLastSeen().getTime();
 			
 			//if (targetMACAddress > 0 && age < ARP_TIMEOUT) {
-			if (targetMACAddress > 0) {
+			if (targetMACAddress.getLong() > 0) {
 				ARPRequest arpRequest = new ARPRequest()
 					.setSourceMACAddress(sourceMACAddress)
 					.setSourceIPAddress(sourceIPAddress)
 					.setTargetMACAddress(targetMACAddress)
 					.setTargetIPAddress(targetIPAddress)
-					.setSwitchId(switchId)
-					.setInPort(portId);
+					.setSwitchId(sw.getId().getLong())
+					.setInPort(pi.getInPort().getShortPortNumber());
 				// Send ARP reply.
-				this.sendARPReply(arpRequest);
+				this.sendARPReply(arpRequest, sw, pi);
 			} else {
 				ARPRequest arpRequest = new ARPRequest()
 					.setSourceMACAddress(sourceMACAddress)
 					.setSourceIPAddress(sourceIPAddress)
 					.setTargetIPAddress(targetIPAddress)
-					.setSwitchId(switchId)
-					.setInPort(portId)
+					.setSwitchId(sw.getId().getLong())
+					.setInPort(pi.getInPort().getShortPortNumber())
 					.setStartTime(System.currentTimeMillis());
-				// Put new ARPRequest object to current ARPRequests list.
 				this.putArpRequest(targetIPAddress, arpRequest);
 				// Send ARP request.
-				this.sendARPReqest(arpRequest);
+				this.sendARPRequest(arpRequest, sw, pi);
 			}
 			
 		} else {
@@ -412,29 +408,158 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				.setSourceMACAddress(sourceMACAddress)
 				.setSourceIPAddress(sourceIPAddress)
 				.setTargetIPAddress(targetIPAddress)
-				.setSwitchId(switchId)
-				.setInPort(portId)
+				.setSwitchId(sw.getId().getLong())
+				.setInPort(pi.getInPort().getShortPortNumber())
 				.setStartTime(System.currentTimeMillis());
-			// Put new ARPRequest object to current ARPRequests list.		
 			this.putArpRequest(targetIPAddress, arpRequest);
 			// Send ARP request
-			this.sendARPReqest(arpRequest);
+			this.sendARPRequest(arpRequest, sw, pi);
 		}
 		
 		// Make a routing decision and forward the ARP message
-		IRoutingDecision decision = new RoutingDecision(switchId, portId, IDeviceService.fcStore.get(cntx, IDeviceService.CONTEXT_SRC_DEVICE), IRoutingDecision.RoutingAction.NONE);
+		IRoutingDecision decision = new RoutingDecision(sw.getId(), pi.getInPort(), IDeviceService.fcStore.get(cntx, IDeviceService.CONTEXT_SRC_DEVICE), IRoutingDecision.RoutingAction.NONE);
 		
 		return Command.CONTINUE;
 	}
-	
-	/**
-	 * Handles incoming ARP replies. Reads the relevant information, get the corresponding 
+
+	protected void sendARPReply(ARPRequest arpRequest, IOFSwitch sw, OFPacketIn pi) {
+		// Create an ARP reply frame (from target (source) to source (destination)).
+		IPacket arpReply = new Ethernet()
+				.setSourceMACAddress(arpRequest.getTargetMACAddress())
+				.setDestinationMACAddress(arpRequest.getSourceMACAddress())
+				.setEtherType(EthType.ARP)
+				.setPayload(new ARP()
+						.setHardwareType(ARP.HW_TYPE_ETHERNET)
+						.setProtocolType(ARP.PROTO_TYPE_IP)
+						.setOpCode(ARP.OP_REPLY)
+						.setHardwareAddressLength((byte)6)
+						.setProtocolAddressLength((byte)4)
+						.setSenderHardwareAddress(arpRequest.getTargetMACAddress())
+						.setSenderProtocolAddress(arpRequest.getTargetIPAddress())
+						.setTargetHardwareAddress(arpRequest.getSourceMACAddress())
+						.setTargetProtocolAddress(arpRequest.getSourceIPAddress())
+						.setPayload(new Data(new byte[] {0x01})));
+		// Send ARP reply.
+		sendPOMessage(arpReply, sw, arpRequest.getInPort(), pi);
+		if (logger.isDebugEnabled()) {
+			logger.info("Send ARP reply to " + HexString.toHexString(arpRequest.getSwitchId()) + " at port " + arpRequest.getInPort());
+		}
+	}
+
+	protected void sendARPRequest(ARPRequest arpRequest, IOFSwitch sw, OFPacketIn pi) {
+		// Create an ARP request frame
+		IPacket arpReply = new Ethernet()
+				.setSourceMACAddress(arpRequest.getSourceMACAddress())
+				.setDestinationMACAddress(arpRequest.getTargetMACAddress())
+				.setEtherType(EthType.ARP)
+				.setPayload(new ARP()
+						.setHardwareType(ARP.HW_TYPE_ETHERNET)
+						.setProtocolType(ARP.PROTO_TYPE_IP)
+						.setOpCode(ARP.OP_REQUEST)
+						.setHardwareAddressLength((byte)6)
+						.setProtocolAddressLength((byte)4)
+						.setSenderHardwareAddress(arpRequest.getSourceMACAddress())
+						.setSenderProtocolAddress(arpRequest.getSourceIPAddress())
+						.setTargetHardwareAddress(arpRequest.getTargetMACAddress())
+						.setTargetProtocolAddress(arpRequest.getTargetIPAddress())
+						.setPayload(new Data(new byte[] {0x01})));
+
+		// Send ARP request to all external ports (i.e. attachment point ports).
+		for (OFPortDesc port : sw.getPorts()) {
+			short portId = port.getPortNo().getShortPortNumber();
+			if (sw.getId().getLong() == arpRequest.getSwitchId() && portId == arpRequest.getInPort()) {
+				continue;
+			}
+			if (topologyManager.isAttachmentPointPort(sw.getId(), port.getPortNo()))
+				this.sendPOMessage(arpReply, sw, portId, pi);
+			if (logger.isDebugEnabled()) {
+				logger.debug("Send ARP request to " + HexString.toHexString(sw.getId().getBytes()) + " at port " + portId);
+			}
+		}
+
+	}
+
+	protected void sendPOMessage(IPacket packet, IOFSwitch sw, short port, OFPacketIn pi) {
+		// Serialize and wrap in a packet out
+		byte[] data = packet.serialize();
+		//OFPacketOut po = (OFPacketOut) floodlightProvider.getOFMessageFactory().getMessage(OFType.PACKET_OUT);
+		OFPacketOut.Builder pob = sw.getOFFactory().buildPacketOut();
+		pob.setBufferId(pi.getBufferId());
+		pob.setInPort(pi.getInPort());
 
 
 
+		// Set actions
+		List<OFAction> actions = new ArrayList<OFAction>();
+		actions.add(sw.getOFFactory().actions().buildOutput().setPort(OFPort.TABLE).setMaxLen(Integer.MAX_VALUE).build());
+		//actions.add(new OFActionOutput(port, (short) 0));
+		pob.setActions(actions);
+		//po.setActionsLength((short) OFActionOutput.MINIMUM_LENGTH);
+
+		// Set data
+		//pob.setLengthU(OFPacketOut.MINIMUM_LENGTH + po.getActionsLength() + data.length);
+		//pob.setPacketData(data);
+		if (pob.getBufferId() == OFBufferId.NO_BUFFER) {
+			if (packet == null) {
+				logger.error("BufferId is not set and packet data is null. " +
+								"Cannot send packetOut. " +
+								"srcSwitch={} inPort={} outPort={}",
+						new Object[] {sw, pi.getInPort(), OFPort.TABLE});
+				return;
+			}
+			pob.setData(data);
+		}
+
+		// Send message
+		try {
+			sw.write(pob.build());
+			//sw.flush();
+		} catch (Exception e) {
+			logger.error("Failure sending ARP out port {} on switch {}, {}", new Object[] { port, sw.getId() }, e);
+		}
+	}
 
 
+	private void putArpRequest(IPAddress targetIPAddress, ARPRequest arpRequest) {
+		if (arpRequests.containsKey(targetIPAddress)) {
+			arpRequests.get(targetIPAddress).add(arpRequest);
+		} else {
+			arpRequests.put(targetIPAddress, new HashSet<ARPRequest>());
+			arpRequests.get(targetIPAddress).add(arpRequest);
+		}
+	}
 
+
+	protected Command handleARPReply(ARP arp, IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx) {
+		/* The IP address of the ARP target. */
+		IPv4Address targetIPAddress = arp.getSenderProtocolAddress();
+		/* The set of APRRequest objects related to the target IP address.*/
+		Set<ARPRequest> arpRequestSet = arpRequests.remove(targetIPAddress);
+		/* The ARPRequenst object related to the ARP reply message. */
+		ARPRequest arpRequest;
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("Received ARP reply message from " + arp.getSenderHardwareAddress() + " at " + HexString.toHexString(sw.getId().getBytes()) + " - " + pi.getInPort());
+		}
+
+		// If the ARP request has already timed out, consume the message.
+		// The sending host should send a new request, actually.
+		if (arpRequestSet == null)
+			return Command.STOP;
+
+		for (Iterator<ARPRequest> iter = arpRequestSet.iterator(); iter.hasNext();) {
+			arpRequest = iter.next();
+			iter.remove();
+			arpRequest.setTargetMACAddress(arp.getSenderHardwareAddress());
+			sendARPReply(arpRequest, sw, pi);
+		}
+
+		// Make a routing decision and forward the ARP message
+		IRoutingDecision decision = new RoutingDecision(sw.getId(), pi.getInPort(), IDeviceService.fcStore.get(cntx, IDeviceService.CONTEXT_SRC_DEVICE), IRoutingDecision.RoutingAction.NONE);
+		decision.addToContext(cntx);
+
+		return Command.CONTINUE;
+	}
 
 
 
