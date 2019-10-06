@@ -356,7 +356,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		
 		
 		// Check if there is an ongoing ARP process for this packet.
-		if (arpRequests.containsKey(targetIPAddress)) {
+		if (arpRequests.get(targetIPAddress)!=null) {
 			// Update start time of current ARPRequest objects
 			long startTime = System.currentTimeMillis();
 			Set<ARPRequest> arpRequestSet = arpRequests.get(targetIPAddress);
