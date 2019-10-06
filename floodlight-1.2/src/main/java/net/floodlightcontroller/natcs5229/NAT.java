@@ -122,7 +122,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				IPv4Address srcAddress = ip_pkt.getSourceAddress();
 				//short flags = tcp.getFlags();
 				logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-				ICMPNatForwarding(sw, pi, cntx);
+				ICMPNatForwarding(sw, pi, cntx, eth, pkt);
 
 			}
 			else{
@@ -240,26 +240,25 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 	}
 
 
-	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx){
-		logger.info("ICMP NAT Forwarding");
-		Ethernet eth = IFloodlightProviderService.bcStore.get(cntx, IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
-		IPacket pkt = eth.getPayload();
+	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx, Ethernet eth, IPacket pkt){
 
-		if (!(eth.getPayload() instanceof ICMP)){
-			logger.error("This payload is not ICMP");
-			return;
-		}
-		ICMP ICMPRequest = (ICMP) eth.getPayload();
+
+
     	IPv4 ip_pkt = (IPv4) pkt;
 		IPacket payload = ip_pkt.getPayload();
     	logger.info("NATing ICMP Package");
-    	IPacket icmpReply = new Ethernet()
-				.setSourceMACAddress(eth.getSourceMACAddress())
-				.setDestinationMACAddress(eth.getDestinationMACAddress())
-				.setEtherType(eth.getEtherType())
-				.setVlanID(eth.getVlanID())
-				.setPriorityCode(eth.getPriorityCode())
-				.setPayload(ICMPRequest);
+    	IPv4 icmpReply = new IPv4()
+				.setChecksum(ip_pkt.getChecksum())
+				.setDestinationAddress(ip_pkt.getDestinationAddress())
+				.setSourceAddress(ip_pkt.getSourceAddress())
+				.setDiffServ(ip_pkt.getDiffServ())
+				.setFlags(ip_pkt.getFlags())
+				.setFragmentOffset(ip_pkt.getFragmentOffset())
+				.setIdentification(ip_pkt.getIdentification())
+				.setOptions(ip_pkt.getOptions())
+				.setProtocol(ip_pkt.getProtocol())
+				.setTtl(ip_pkt.getTtl())
+				.setVersion(ip_pkt.getVersion());
 		pushPacket(icmpReply, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
