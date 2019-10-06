@@ -86,7 +86,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 
 		}
-	} else{
+	}
+	else{
 		if (pkt instanceof IPv4){
 			IPv4 ip_pkt = (IPv4) pkt;
 			
@@ -104,7 +105,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				logger.info("TCP Package received from port: {} to Port: {}", new Object[] {srcPort, dstPort});
 				 
 				/* Your logic here! */
-			} else if (ip_pkt.getProtocol() == IpProtocol.UDP) {
+			}
+			else if (ip_pkt.getProtocol() == IpProtocol.UDP) {
 				/* We got a UDP packet; get the payload from IPv4 */
 				UDP udp = (UDP) ip_pkt.getPayload();
 				
@@ -116,14 +118,12 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				/* Your logic here! */
 			}
 			else if (ip_pkt.getProtocol() == IpProtocol.ICMP) {
-				ICMP icmp = (ICMP) ip_pkt.getPayload();
-				IPacket packet = ip_pkt.getPayload();
-
-				/* Various getters and setters are exposed in TCP */
 				IPv4Address dstAddress = ip_pkt.getDestinationAddress();
 				IPv4Address srcAddress = ip_pkt.getSourceAddress();
 				//short flags = tcp.getFlags();
 				logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
+				ICMPNatForwarding(sw, pi, cntx, eth, ip_pkt);
+				return Command.STOP;
 
 			}
 			else{
@@ -212,8 +212,6 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			return;
 		ARP arpRequest = (ARP) eth.getPayload();
 
-		// have to do proxy arp reply since at this point we cannot determine the requesting application type
-
 		// generate proxy ARP reply
 		IPacket arpReply = new Ethernet()
 				.setSourceMACAddress(eth.getDestinationMACAddress())
@@ -240,18 +238,58 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				new Object[] {arpRequest.getSenderProtocolAddress(), eth.getSourceMACAddress(), arpRequest.getTargetProtocolAddress(),eth.getDestinationMACAddress()});
 		logger.info("proxy ARP reply pushed as {}", arpRequest.getSenderProtocolAddress().toString());
 
-		return;
+	}
+
+
+	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx, Ethernet eth, IPv4 pkt){
+    	logger.info("NATing ICMP Package");
+    	ICMP icmpRequest = (ICMP) eth.getPayload();
+    	OFPort inPort = pi.getInPort();
+    	//NAT ICMP Forward:
+		IPacket icmpForward = new Ethernet()
+				.setSourceMACAddress(eth.getSourceMACAddress())
+				.setDestinationMACAddress(eth.getDestinationMACAddress())
+				.setEtherType(eth.getEtherType())
+				.setVlanID(eth.getVlanID())
+				.setPriorityCode(eth.getPriorityCode())
+				.setPayload(
+						new ICMP()
+						.setChecksum(icmpRequest.getChecksum())
+						.setIcmpCode(icmpRequest.getIcmpCode())
+						.setIcmpType(icmpRequest.getIcmpType())
+				);
+
+		pushPacket(icmpForward, sw, OFBufferId.NO_BUFFER, getMappedIPPort(pkt.getSourceAddress().toString()), getMappedIPPort(pkt.getDestinationAddress().toString()), cntx, true);
+
 	}
 
 	protected MacAddress getMappedMACAddress(IPv4Address targetAddress, MacAddress defaultMacAddress){
-    	String addressString = targetAddress.toString();
-    	String macAddressString = RouterInterfaceMacMap.containsKey(addressString)?
+		String addressString = targetAddress.toString();
+		String macAddressString = RouterInterfaceMacMap.containsKey(addressString)?
 				RouterInterfaceMacMap.get(addressString) : defaultMacAddress.toString();
 		MacAddress resultAddress = MacAddress.of(macAddressString);
+		logger.info("Mac Address Returned: {}", resultAddress.toString());
 		return resultAddress;
 	}
 
+	protected OFPort getMappedIPPort(String portAddress){
+		OFPort resultPort = IPPortMap.containsKey(portAddress)?
+				IPPortMap.get(portAddress): OFPort.ANY;
+		logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), portAddress);
+		return resultPort;
+	}
 
+	/**
+	 * used to push any packet - borrowed routine from Forwarding
+	 *
+	 * @param packet IPacket
+	 * @param sw Switch
+	 * @param bufferId bufferId
+	 * @param inPort inPort
+	 * @param outPort outPort
+	 * @param cntx Floodlight Context
+	 * @param flush bookean
+	 */
 	public void pushPacket(IPacket packet,
 						   IOFSwitch sw,
 						   OFBufferId bufferId,
@@ -259,23 +297,16 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 						   OFPort outPort,
 						   FloodlightContext cntx,
 						   boolean flush) {
-		if (logger.isTraceEnabled()) {
-			logger.trace("PacketOut srcSwitch={} inPort={} outPort={}",
-					new Object[] {sw, inPort, outPort});
-		}
 
 		OFPacketOut.Builder pob = sw.getOFFactory().buildPacketOut();
-
 		// set actions
 		List<OFAction> actions = new ArrayList<OFAction>();
 		actions.add(sw.getOFFactory().actions().buildOutput().setPort(outPort).setMaxLen(Integer.MAX_VALUE).build());
 
 		pob.setActions(actions);
-
 		// set buffer_id, in_port
 		pob.setBufferId(bufferId);
 		pob.setInPort(inPort);
-
 		// set data - only if buffer_id == -1
 		if (pob.getBufferId() == OFBufferId.NO_BUFFER) {
 			if (packet == null) {
