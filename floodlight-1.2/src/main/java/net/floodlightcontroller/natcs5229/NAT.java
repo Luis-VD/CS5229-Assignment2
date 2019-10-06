@@ -97,6 +97,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				TransportPort srcPort = tcp.getSourcePort();
 				TransportPort dstPort = tcp.getDestinationPort();
 				short flags = tcp.getFlags();
+				logger.info("TCP Package received from port: {} to Port: {}", new Object[] {srcPort, dstPort});
 				 
 				/* Your logic here! */
 			} else if (ip_pkt.getProtocol() == IpProtocol.UDP) {
