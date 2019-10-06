@@ -88,7 +88,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			
 			byte[] ipOptions = ip_pkt.getOptions();
 			IPv4Address dstIp = ip_pkt.getDestinationAddress();
-
+			logger.info("This packet is type IPv4 with destination: "+dstIp);
 			if (ip_pkt.getProtocol() == IpProtocol.TCP) {
 				/* We got a TCP packet; get the payload from IPv4 */
 				TCP tcp = (TCP) ip_pkt.getPayload();
@@ -107,7 +107,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				/* Various getters and setters are exposed in UDP */
 				TransportPort srcPort = udp.getSourcePort();
 				TransportPort dstPort = udp.getDestinationPort();
-				 
+				logger.info("UDP Package received from port: {} to Port: {}", new Object[] {srcPort, dstPort});
+
 				/* Your logic here! */
 			}
 			else if (ip_pkt.getProtocol() == IpProtocol.ICMP) {
