@@ -122,8 +122,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				IPv4Address srcAddress = ip_pkt.getSourceAddress();
 				//short flags = tcp.getFlags();
 				logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-				ICMPNatForwarding(sw, pi, cntx, eth, ip_pkt);
-				return Command.STOP;
+				ICMPNatForwarding(sw, pi, cntx, eth, pkt);
 
 			}
 			else{
@@ -241,9 +240,10 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 	}
 
 
-	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx, Ethernet eth, IPv4 pkt){
+	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx, Ethernet eth, IPacket pkt){
+		IPv4 ip_pkt = (IPv4) pkt;
     	logger.info("NATing ICMP Package");
-		pushPacket(pkt, sw, OFBufferId.NO_BUFFER, getMappedIPPort(pkt.getSourceAddress().toString()), getMappedIPPort(pkt.getDestinationAddress().toString()), cntx, true);
+		pushPacket(pkt, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
 
