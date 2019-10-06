@@ -77,10 +77,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 			logger.info("Requestor : " + srcIp + " from : " + pi.getMatch().get(MatchField.IN_PORT).getPortNumber());
 
-			if (arpRequest.getOpCode() == ARP.OP_REPLY) {
-				proxyArpReply(sw, pi, cntx);
-				return Command.STOP;
-			}
+			proxyArpReply(sw, pi, cntx);
+			//return Command.STOP;
 
 
 		}
