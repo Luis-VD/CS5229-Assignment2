@@ -231,6 +231,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 		// push ARP reply out
 		pushPacket(arpReply, sw, OFBufferId.NO_BUFFER, OFPort.ANY, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)), cntx, true);
+		logger.info("Sending packet from {} with MAC Address {} with destination IP {} searching for MAC Address {}",
+				new Object[] {arpRequest.getSenderProtocolAddress(), eth.getSourceMACAddress(), arpRequest.getTargetProtocolAddress(),eth.getDestinationMACAddress()});
 		logger.info("proxy ARP reply pushed as {}", arpRequest.getSenderProtocolAddress().toString());
 
 		return;
