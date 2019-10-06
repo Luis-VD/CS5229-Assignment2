@@ -243,23 +243,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx, Ethernet eth, IPv4 pkt){
     	logger.info("NATing ICMP Package");
-    	ICMP icmpRequest = (ICMP) eth.getPayload();
-    	OFPort inPort = pi.getInPort();
-    	//NAT ICMP Forward:
-		IPacket icmpForward = new Ethernet()
-				.setSourceMACAddress(eth.getSourceMACAddress())
-				.setDestinationMACAddress(eth.getDestinationMACAddress())
-				.setEtherType(eth.getEtherType())
-				.setVlanID(eth.getVlanID())
-				.setPriorityCode(eth.getPriorityCode())
-				.setPayload(
-						new ICMP()
-						.setChecksum(icmpRequest.getChecksum())
-						.setIcmpCode(icmpRequest.getIcmpCode())
-						.setIcmpType(icmpRequest.getIcmpType())
-				);
-
-		pushPacket(icmpForward, sw, OFBufferId.NO_BUFFER, getMappedIPPort(pkt.getSourceAddress().toString()), getMappedIPPort(pkt.getDestinationAddress().toString()), cntx, true);
+		pushPacket(pkt, sw, OFBufferId.NO_BUFFER, getMappedIPPort(pkt.getSourceAddress().toString()), getMappedIPPort(pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
 
