@@ -78,7 +78,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			logger.info("Requestor : " + srcIp + " from : " + pi.getMatch().get(MatchField.IN_PORT).getPortNumber());
 
 			proxyArpReply(sw, pi, cntx);
-			//return Command.STOP;
+			return Command.STOP;
 
 
 		}
@@ -196,7 +196,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 		// generate proxy ARP reply
 		IPacket arpReply = new Ethernet()
-				.setSourceMACAddress(eth.getSourceMACAddress())
+				.setSourceMACAddress(eth.getDestinationMACAddress())
 				.setDestinationMACAddress(eth.getSourceMACAddress())
 				.setEtherType(EthType.ARP)
 				.setVlanID(eth.getVlanID())
@@ -259,6 +259,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		}
 
 		//counterPacketOut.increment();
+		logger.info("Wrote package to switch");
 		sw.write(pob.build());
 	}
 
