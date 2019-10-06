@@ -247,7 +247,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
     	IPv4 ip_pkt = (IPv4) pkt;
 		IPacket payload = ip_pkt.getPayload();
     	logger.info("NATing ICMP Package");
-    	IPv4 icmpReply = new IPv4()
+    	IPv4 icmpIPv4Reply = new IPv4()
 				.setChecksum(ip_pkt.getChecksum())
 				.setDestinationAddress(ip_pkt.getDestinationAddress())
 				.setSourceAddress(ip_pkt.getSourceAddress())
@@ -259,6 +259,9 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				.setProtocol(ip_pkt.getProtocol())
 				.setTtl(ip_pkt.getTtl())
 				.setVersion(ip_pkt.getVersion());
+    	IPacket icmpReply = icmpIPv4Reply
+				.setPayload(payload)
+				.setParent(pkt.getParent());
 		pushPacket(icmpReply, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
