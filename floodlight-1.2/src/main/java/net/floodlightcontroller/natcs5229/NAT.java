@@ -121,6 +121,9 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
 
 			}
+			else{
+				logger.info("The protocol of the sent message is: "+ip_pkt.getProtocol());
+			}
 
 		}
 	}
