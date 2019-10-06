@@ -354,7 +354,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		/* The MAC address of the (yet unknown) ARP target. */
 		MacAddress targetMACAddress;
 		
-		
+		/*
 		// Check if there is an ongoing ARP process for this packet.
 		if (arpRequests.get(targetIPAddress)!=null) {
 			// Update start time of current ARPRequest objects
@@ -365,7 +365,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				iter.next().setStartTime(startTime);
 			}
 			return Command.STOP;
-		}
+		}*/
 		
 		
 		@SuppressWarnings("unchecked")
