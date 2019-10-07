@@ -213,7 +213,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 								.setHardwareAddressLength((byte) 6)
 								.setProtocolAddressLength((byte) 4)
 								.setOpCode(ARP.OP_REPLY)
-								.setSenderHardwareAddress(getMappedMACAddress(arpRequest.getTargetProtocolAddress(), eth.getDestinationMACAddress()))
+								.setSenderHardwareAddress(getMappedInterfaceMACAddress(arpRequest.getTargetProtocolAddress(), eth.getDestinationMACAddress()))
 								.setSenderProtocolAddress(arpRequest.getTargetProtocolAddress())
 								.setTargetHardwareAddress(eth.getSourceMACAddress())
 								.setTargetProtocolAddress(arpRequest.getSenderProtocolAddress()));
@@ -239,7 +239,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		Ethernet frame = new Ethernet()
 				.setSourceMACAddress(eth.getSourceMACAddress())
-				.setDestinationMACAddress(getMappedMACAddress(ip_pkt.getDestinationAddress(), eth.getDestinationMACAddress()))
+				.setDestinationMACAddress(getMappedIpMACAddress(ip_pkt.getDestinationAddress(), eth.getDestinationMACAddress()))
 				.setEtherType(eth.getEtherType());
 
 		IPv4 pkt_out = new IPv4()
@@ -269,12 +269,21 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 	}
 
-	protected MacAddress getMappedMACAddress(IPv4Address targetAddress, MacAddress defaultMacAddress){
+	protected MacAddress getMappedInterfaceMACAddress(IPv4Address targetAddress, MacAddress defaultMacAddress){
 		String addressString = targetAddress.toString();
 		String macAddressString = RouterInterfaceMacMap.containsKey(addressString)?
 				RouterInterfaceMacMap.get(addressString) : defaultMacAddress.toString();
 		MacAddress resultAddress = MacAddress.of(macAddressString);
-		logger.info("Mac Address Returned: {}", resultAddress.toString());
+		logger.info("Interface Mac Address Returned: {}", resultAddress.toString());
+		return resultAddress;
+	}
+
+	protected MacAddress getMappedIpMACAddress(IPv4Address targetAddress, MacAddress defaultMacAddress){
+		String addressString = targetAddress.toString();
+		String macAddressString = IPMacMap.containsKey(addressString)?
+				IPMacMap.get(addressString) : defaultMacAddress.toString();
+		MacAddress resultAddress = MacAddress.of(macAddressString);
+		logger.info("IP Mac Address Returned: {}", resultAddress.toString());
 		return resultAddress;
 	}
 
