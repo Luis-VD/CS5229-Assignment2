@@ -241,13 +241,13 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		String icmpIdentifier = getIdentifierFromPayload(icmp_packet.serialize());
 		OFPort defaultOutPort = (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT));
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
-		boolean isNatted = ip_pkt.getSourceAddress().toString() != getMappedNATAddress(ip_pkt.getSourceAddress().toString()).toString();
+		boolean isNatted = NATIPMap.containsKey(ip_pkt.getSourceAddress().toString());
 
 		if (isNatted){
-			logger.info("True because {} is different to {} ", ip_pkt.getSourceAddress().toString(), getMappedNATAddress(ip_pkt.getSourceAddress().toString()));
+			logger.info("Is natted because {} is in the NAT Map", ip_pkt.getSourceAddress().toString());
 			IcmpIdentifierMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
 		}else if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
-			logger.info("Request is not NATted, likely coming back, attempting to retrieve origin port");
+			logger.info("It is not Natted because {} is NOT in the NAT Map", ip_pkt.getSourceAddress().toString());
 			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierMap.get(icmpIdentifier)));
 		}
 
