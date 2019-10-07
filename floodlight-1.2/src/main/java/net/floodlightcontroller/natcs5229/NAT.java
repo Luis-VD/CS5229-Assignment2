@@ -45,6 +45,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
     HashMap<String, OFPort> IPPortMap = new HashMap<>();
     HashMap<String, String> IPMacMap = new HashMap<>();
     HashMap<String, String> NATIPMap = new HashMap<>();
+    HashMap<String, String> IcmpIdentifierMap = new HashMap<>();
 
 
     @Override
@@ -236,7 +237,20 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		IPv4Address dstAddress = ip_pkt.getDestinationAddress();
 		IPv4Address srcAddress = ip_pkt.getSourceAddress();
 		ICMP icmp_packet = (ICMP) ip_pkt.getPayload();
+		String icmpIdentifier = getIdentifierFromPayload(icmp_packet.serialize());
+		OFPort defaultOutPort = pi.getInPort();
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
+		boolean isNatted = ip_pkt.getSourceAddress() != getMappedNATAddress(ip_pkt.getSourceAddress().toString());
+
+		if (isNatted){
+			IcmpIdentifierMap.put(icmpIdentifier, pi.getInPort().toString());
+		}
+
+		if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
+			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierMap.get(icmpIdentifier)));
+		}
+
+
 		Ethernet frame = new Ethernet()
 				.setSourceMACAddress(eth.getSourceMACAddress())
 				.setDestinationMACAddress(getMappedIpMACAddress(ip_pkt.getDestinationAddress(), eth.getDestinationMACAddress()))
@@ -267,7 +281,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 
 		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-		pushPacketPi(serialized_data, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
+		pushPacketPi(serialized_data, sw, pi.getBufferId(), pi.getInPort(), getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort), cntx, true);
 
 	}
 
@@ -280,11 +294,13 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		return resultAddress;
 	}
 
-	private static String bytesToHex(byte[] hashInBytes) {
+	private static String getIdentifierFromPayload(byte[] hashInBytes) {
 
 		StringBuilder sb = new StringBuilder();
-		for (byte b : hashInBytes) {
-			sb.append(String.format("%02x", b));
+		if (hashInBytes.length>5)
+		{
+			sb.append(String.format("%02x", hashInBytes[4]));
+			sb.append(String.format("%02x", hashInBytes[5]));
 		}
 		return sb.toString();
 
@@ -299,7 +315,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		return resultAddress;
 	}
 
-	protected OFPort getMappedIPPort(String portAddress){
+	protected OFPort getMappedIPPort(String portAddress, OFPort defaultPort){
 		OFPort resultPort = IPPortMap.containsKey(portAddress)?
 				IPPortMap.get(portAddress): OFPort.ANY;
 		logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), portAddress);
