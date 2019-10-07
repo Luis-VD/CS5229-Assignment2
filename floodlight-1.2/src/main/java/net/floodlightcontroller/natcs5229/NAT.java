@@ -122,7 +122,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				IPv4Address srcAddress = ip_pkt.getSourceAddress();
 				//short flags = tcp.getFlags();
 				logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-				ICMPNatForwarding(sw, pi, cntx, eth, pkt);
+				ICMPNatForwarding(sw, pi, cntx);
 
 			}
 			else{
@@ -240,12 +240,14 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 	}
 
 
-	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx, Ethernet eth, IPacket pkt){
+	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx){
+		logger.info("ICMPForwarding");
+		Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,
+				IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
 
-
-
+		IPacket pkt = eth.getPayload();
     	IPv4 ip_pkt = (IPv4) pkt;
-		IPacket payload = ip_pkt.getPayload();
+		ICMP payload = (ICMP) eth.getPayload();
     	logger.info("NATing ICMP Package");
     	IPv4 icmpIPv4Reply = new IPv4()
 				.setChecksum(ip_pkt.getChecksum())
@@ -259,9 +261,16 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				.setProtocol(ip_pkt.getProtocol())
 				.setTtl(ip_pkt.getTtl())
 				.setVersion(ip_pkt.getVersion());
-    	IPacket icmpReply = icmpIPv4Reply
-				.setPayload(payload)
-				.setParent(pkt.getParent());
+    	IPacket icmpReply = new Ethernet()
+				.setSourceMACAddress(eth.getSourceMACAddress())
+				.setDestinationMACAddress(eth.getDestinationMACAddress())
+				.setEtherType(EthType.IPv4)
+				.setVlanID(eth.getVlanID())
+				.setPriorityCode(eth.getPriorityCode())
+				.setPayload(new ICMP()
+					.setIcmpType(payload.getIcmpType())
+					.setIcmpCode(payload.getIcmpCode())
+					.setChecksum(payload.getChecksum()));
 		pushPacket(icmpReply, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
