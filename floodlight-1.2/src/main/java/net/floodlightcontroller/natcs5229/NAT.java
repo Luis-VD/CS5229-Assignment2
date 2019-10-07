@@ -95,9 +95,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			IPv4Address dstIp = ip_pkt.getDestinationAddress();
 			logger.info("This packet is type IPv4 with destination: "+dstIp);
 			if (ip_pkt.getProtocol() == IpProtocol.TCP) {
-				/* We got a TCP packet; get the payload from IPv4 */
 				TCP tcp = (TCP) ip_pkt.getPayload();
-				
 				/* Various getters and setters are exposed in TCP */
 				TransportPort srcPort = tcp.getSourcePort();
 				TransportPort dstPort = tcp.getDestinationPort();
@@ -106,22 +104,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				 
 				/* Your logic here! */
 			}
-			else if (ip_pkt.getProtocol() == IpProtocol.UDP) {
-				/* We got a UDP packet; get the payload from IPv4 */
-				UDP udp = (UDP) ip_pkt.getPayload();
-				
-				/* Various getters and setters are exposed in UDP */
-				TransportPort srcPort = udp.getSourcePort();
-				TransportPort dstPort = udp.getDestinationPort();
-				logger.info("UDP Package received from port: {} to Port: {}", new Object[] {srcPort, dstPort});
-
-				/* Your logic here! */
-			}
 			else if (ip_pkt.getProtocol() == IpProtocol.ICMP) {
-				IPv4Address dstAddress = ip_pkt.getDestinationAddress();
-				IPv4Address srcAddress = ip_pkt.getSourceAddress();
-				//short flags = tcp.getFlags();
-				logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
 				ICMPNatForwarding(sw, pi, cntx);
 
 			}
@@ -241,13 +224,15 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 
 	protected void ICMPNatForwarding(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx){
-		logger.info("ICMPForwarding");
 		Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,
 				IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
-
 		IPacket pkt = eth.getPayload();
-    	IPv4 ip_pkt = (IPv4) pkt;
-    	logger.info("NATing ICMP Package {}", pkt);
+		IPv4 ip_pkt = (IPv4) pkt;
+		IPv4Address dstAddress = ip_pkt.getDestinationAddress();
+		IPv4Address srcAddress = ip_pkt.getSourceAddress();
+
+		logger.info("Type of packet that will be forwarded: {}", ip_pkt.getProtocol().toString());
+		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
 		pushPacket(pkt, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
