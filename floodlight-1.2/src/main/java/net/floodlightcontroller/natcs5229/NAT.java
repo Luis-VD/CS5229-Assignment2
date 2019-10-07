@@ -33,6 +33,7 @@ import javax.crypto.Mac;
 /**
  * Created by pravein on 28/9/17.
  */
+@SuppressWarnings("ALL")
 public class NAT implements IOFMessageListener, IFloodlightModule {
 
     protected IFloodlightProviderService floodlightProvider;
@@ -232,7 +233,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		IPv4Address srcAddress = ip_pkt.getSourceAddress();
 
 		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-		pushPacket(pkt, sw, OFBufferId.NO_BUFFER, OFPort.ANY, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)), cntx, true);
+		pushPacketPi(pi, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
 
@@ -289,8 +290,43 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 						new Object[] {sw, inPort, outPort});
 				return;
 			}
-			byte[] packetData = packet.serialize();
-			pob.setData(packetData);
+			//byte[] packetData = packet.serialize();
+			pob.setData(packet.serialize());
+		}
+
+		//counterPacketOut.increment();
+		logger.info("Wrote packet to switch");
+		sw.write(pob.build());
+	}
+
+
+	public void pushPacketPi(OFPacketIn pi,
+						   IOFSwitch sw,
+						   OFBufferId bufferId,
+						   OFPort inPort,
+						   OFPort outPort,
+						   FloodlightContext cntx,
+						   boolean flush) {
+
+		OFPacketOut.Builder pob = sw.getOFFactory().buildPacketOut();
+		List<OFAction> actions = new ArrayList<OFAction>();
+		actions.add(sw.getOFFactory().actions().buildOutput().setPort(outPort).setMaxLen(Integer.MAX_VALUE).build());
+
+		pob.setActions(actions);
+		// set buffer_id, in_port
+		pob.setBufferId(bufferId);
+		pob.setInPort(inPort);
+		// set data - only if buffer_id == -1
+		if (pob.getBufferId() == OFBufferId.NO_BUFFER) {
+			if (pi.getData() == null) {
+				logger.error("BufferId is not set and packet data is null. " +
+								"Cannot send packetOut. " +
+								"srcSwitch={} inPort={} outPort={}",
+						new Object[] {sw, inPort, outPort});
+				return;
+			}
+			//byte[] packetData = packet.serialize();
+			pob.setData(pi.getData());
 		}
 
 		//counterPacketOut.increment();
