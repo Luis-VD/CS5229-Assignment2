@@ -247,31 +247,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 		IPacket pkt = eth.getPayload();
     	IPv4 ip_pkt = (IPv4) pkt;
-		ICMP payload = (ICMP) eth.getPayload();
-    	logger.info("NATing ICMP Package");
-    	IPv4 icmpIPv4Reply = new IPv4()
-				.setChecksum(ip_pkt.getChecksum())
-				.setDestinationAddress(ip_pkt.getDestinationAddress())
-				.setSourceAddress(ip_pkt.getSourceAddress())
-				.setDiffServ(ip_pkt.getDiffServ())
-				.setFlags(ip_pkt.getFlags())
-				.setFragmentOffset(ip_pkt.getFragmentOffset())
-				.setIdentification(ip_pkt.getIdentification())
-				.setOptions(ip_pkt.getOptions())
-				.setProtocol(ip_pkt.getProtocol())
-				.setTtl(ip_pkt.getTtl())
-				.setVersion(ip_pkt.getVersion());
-    	IPacket icmpReply = new Ethernet()
-				.setSourceMACAddress(eth.getSourceMACAddress())
-				.setDestinationMACAddress(eth.getDestinationMACAddress())
-				.setEtherType(EthType.IPv4)
-				.setVlanID(eth.getVlanID())
-				.setPriorityCode(eth.getPriorityCode())
-				.setPayload(new ICMP()
-					.setIcmpType(payload.getIcmpType())
-					.setIcmpCode(payload.getIcmpCode())
-					.setChecksum(payload.getChecksum()));
-		pushPacket(icmpReply, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
+    	logger.info("NATing ICMP Package {}", pkt);
+		pushPacket(pkt, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
 
@@ -333,7 +310,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		}
 
 		//counterPacketOut.increment();
-		logger.info("Wrote package to switch");
+		logger.info("Wrote packet {} to switch", pob.build());
 		sw.write(pob.build());
 	}
 
