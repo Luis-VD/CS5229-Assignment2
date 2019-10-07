@@ -256,7 +256,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		Data icmp_data = new Data()
 				.setData(icmp_packet.serialize());
 
-		logger.info("Serialization of the ICMP Packet: {}", icmp_packet.serialize());
+		logger.info("Serialization of the ICMP Packet: {}", bytesToHex(icmp_packet.serialize()));
 
 
 		//icmp_out.setPayload(icmp_data);
@@ -278,6 +278,16 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		MacAddress resultAddress = MacAddress.of(macAddressString);
 		logger.info("Interface Mac Address Returned: {}", resultAddress.toString());
 		return resultAddress;
+	}
+
+	private static String bytesToHex(byte[] hashInBytes) {
+
+		StringBuilder sb = new StringBuilder();
+		for (byte b : hashInBytes) {
+			sb.append(String.format("%02x", b));
+		}
+		return sb.toString();
+
 	}
 
 	protected MacAddress getMappedIpMACAddress(IPv4Address targetAddress, MacAddress defaultMacAddress){
