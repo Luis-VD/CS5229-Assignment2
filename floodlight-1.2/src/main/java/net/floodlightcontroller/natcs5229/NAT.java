@@ -428,7 +428,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			if(Long.parseLong(String.valueOf(pair.getValue()))+IcmpExpiryPeriod < currentTime){
 				IcmpIdentifierIPMap.remove(pair.getKey());
 				IcmpIdentifierPortMap.remove(pair.getKey());
-				logger.info("ICMP ID:  {}  has been removed from Query ID Map after {} seconds", pair.getValue().toString(), IcmpExpiryPeriod/1000);
+				logger.info("ICMP ID:  {}  has been removed from Query ID Map after {} seconds", pair.getKey().toString(), IcmpExpiryPeriod/1000);
 				it.remove();
 			}
 			//it.remove(); // avoids a ConcurrentModificationException
