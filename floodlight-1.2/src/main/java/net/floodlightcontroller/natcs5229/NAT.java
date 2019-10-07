@@ -233,6 +233,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		OFPort defaultOutPort = (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT));
 		OFPort outPort = defaultOutPort;
 		String natInboundIp = "";
+		String natInboundMac = "";
 
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		boolean isNatted = NATIPMap.containsKey(ip_pkt.getSourceAddress().toString());
@@ -253,7 +254,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 		Ethernet frame = new Ethernet()
 				.setSourceMACAddress(eth.getSourceMACAddress())
-				.setDestinationMACAddress(getMappedIpMACAddress(ip_pkt.getDestinationAddress(), eth.getDestinationMACAddress()))
+				.setDestinationMACAddress(getMappedIpMACAddress(natInboundIp == "" ? ip_pkt.getDestinationAddress() : IPv4Address.of(natInboundIp), eth.getDestinationMACAddress()))
 				.setEtherType(eth.getEtherType());
 
 		IPv4 pkt_out = new IPv4()
