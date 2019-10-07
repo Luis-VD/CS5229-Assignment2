@@ -238,7 +238,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		ICMP icmp_packet = (ICMP) ip_pkt.getPayload();
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		Ethernet frame = new Ethernet()
-				.setSourceMACAddress(eth.getSourceMACAddress())
+				.setSourceMACAddress(getMappedInterfaceMACAddress(getMappedNATAddress(ip_pkt.getSourceAddress().toString()), eth.getSourceMACAddress()))
 				.setDestinationMACAddress(getMappedIpMACAddress(ip_pkt.getDestinationAddress(), eth.getDestinationMACAddress()))
 				.setEtherType(eth.getEtherType());
 
