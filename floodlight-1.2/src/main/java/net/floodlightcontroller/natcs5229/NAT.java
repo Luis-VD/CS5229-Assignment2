@@ -230,8 +230,9 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		IPv4 ip_pkt = (IPv4) pkt;
 		IPv4Address dstAddress = ip_pkt.getDestinationAddress();
 		IPv4Address srcAddress = ip_pkt.getSourceAddress();
+		boolean isICMP = ip_pkt.getProtocol() == IpProtocol.ICMP;
 
-		logger.info("Type of packet that will be forwarded: {}", ip_pkt.getProtocol().toString());
+		logger.info("Is this packet ICMP?: {}", isICMP);
 		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
 		pushPacket(pkt, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
