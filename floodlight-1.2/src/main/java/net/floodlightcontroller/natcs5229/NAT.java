@@ -244,10 +244,10 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		boolean isNatted = ip_pkt.getSourceAddress() != getMappedNATAddress(ip_pkt.getSourceAddress().toString());
 
 		if (isNatted){
-			IcmpIdentifierMap.put(icmpIdentifier, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)).toString());
-		}
-
-		if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
+			logger.info("This request comes from a device in NAT, will be logging identifier in MAP");
+			IcmpIdentifierMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
+		}else if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
+			logger.info("Request is not NATted, likely coming back, attempting to retrieve origin port");
 			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierMap.get(icmpIdentifier)));
 		}
 
@@ -271,7 +271,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		Data icmp_data = new Data()
 				.setData(icmp_packet.serialize());
 
-		logger.info("ICMP Identifier: {} {} ", String.format("%02x", icmp_packet.serialize()[4]), String.format("%02x", icmp_packet.serialize()[5]));
+		logger.info("ICMP Identifier: {}", icmpIdentifier);
 
 
 		//icmp_out.setPayload(icmp_data);
@@ -317,10 +317,10 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		return resultAddress;
 	}
 
-	protected OFPort getMappedIPPort(String portAddress, OFPort defaultPort){
-		OFPort resultPort = IPPortMap.containsKey(portAddress)?
-				IPPortMap.get(portAddress): OFPort.ANY;
-		logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), portAddress);
+	protected OFPort getMappedIPPort(String ipAddressString, OFPort defaultPort){
+		OFPort resultPort = IPPortMap.containsKey(ipAddressString)?
+				IPPortMap.get(ipAddressString): OFPort.ANY;
+		logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), ipAddressString);
 		return resultPort;
 	}
 
