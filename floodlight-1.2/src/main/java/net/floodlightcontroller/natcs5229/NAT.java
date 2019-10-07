@@ -240,15 +240,19 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		ICMP icmp_packet = (ICMP) ip_pkt.getPayload();
 		String icmpIdentifier = getIdentifierFromPayload(icmp_packet.serialize());
 		OFPort defaultOutPort = (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT));
+		OFPort outPort = defaultOutPort;
+
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		boolean isNatted = NATIPMap.containsKey(ip_pkt.getSourceAddress().toString());
 
 		if (isNatted){
 			logger.info("Is natted because {} is in the NAT Map", ip_pkt.getSourceAddress().toString());
 			IcmpIdentifierMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
+			outPort = getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort);
 		}else if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
 			logger.info("It is not Natted because {} is NOT in the NAT Map", ip_pkt.getSourceAddress().toString());
 			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierMap.get(icmpIdentifier)));
+			outPort = defaultOutPort;
 		}
 
 
@@ -281,9 +285,9 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 
 
-		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
+		logger.info("ICMP Package received from Origin: {} to Destination: {}", new Object[] {srcAddress, dstAddress});
 		pushPacketPi(serialized_data, sw, pi.getBufferId(), (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)),
-				getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort), cntx, true);
+				outPort, cntx, true);
 
 	}
 
