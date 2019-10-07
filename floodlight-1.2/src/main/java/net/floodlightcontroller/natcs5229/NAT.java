@@ -256,6 +256,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		Data icmp_data = new Data()
 				.setData(icmp_packet.serialize());
 
+		logger.info("Serialization of the ICMP Packet: {}", icmp_packet.serialize());
+
 
 		//icmp_out.setPayload(icmp_data);
 		pkt_out.setPayload(icmp_packet);
