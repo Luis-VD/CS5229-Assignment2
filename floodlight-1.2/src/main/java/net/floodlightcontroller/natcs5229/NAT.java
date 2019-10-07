@@ -231,9 +231,37 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		IPv4 ip_pkt = (IPv4) pkt;
 		IPv4Address dstAddress = ip_pkt.getDestinationAddress();
 		IPv4Address srcAddress = ip_pkt.getSourceAddress();
+		ICMP icmp_packet = (ICMP) ip_pkt.getPayload();
+
+		Ethernet frame = new Ethernet()
+				.setSourceMACAddress(eth.getSourceMACAddress())
+				.setDestinationMACAddress(eth.getDestinationMACAddress())
+				.setEtherType(eth.getEtherType());
+
+		IPv4 pkt_out = new IPv4()
+				.setSourceAddress(ip_pkt.getSourceAddress())
+				.setDestinationAddress(ip_pkt.getDestinationAddress())
+				.setTtl(ip_pkt.getTtl())
+				.setProtocol(ip_pkt.getProtocol());
+
+		ICMP icmp_out = new ICMP()
+				.setIcmpCode(icmp_packet.getIcmpCode())
+				.setIcmpType(icmp_packet.getIcmpType())
+				.setChecksum(icmp_packet.getChecksum());
+
+		Data icmp_data = new Data()
+				.setData(ip_pkt.serialize());
+
+
+		icmp_out.setPayload(icmp_data);
+		pkt_out.setPayload(icmp_out);
+		frame.setPayload(pkt_out);
+		byte[] serialized_data = frame.serialize();
+
+
 
 		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-		pushPacketPi(pi, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
+		pushPacketPi(serialized_data, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
 
 	}
 
@@ -300,7 +328,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 	}
 
 
-	public void pushPacketPi(OFPacketIn pi,
+	public void pushPacketPi(byte[] serialized_data,
 						   IOFSwitch sw,
 						   OFBufferId bufferId,
 						   OFPort inPort,
@@ -318,15 +346,14 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		pob.setInPort(inPort);
 		// set data - only if buffer_id == -1
 		if (pob.getBufferId() == OFBufferId.NO_BUFFER) {
-			if (pi.getData() == null) {
+			if (serialized_data == null) {
 				logger.error("BufferId is not set and packet data is null. " +
 								"Cannot send packetOut. " +
 								"srcSwitch={} inPort={} outPort={}",
 						new Object[] {sw, inPort, outPort});
 				return;
 			}
-			//byte[] packetData = packet.serialize();
-			pob.setData(pi.getData());
+			pob.setData(serialized_data);
 		}
 
 		//counterPacketOut.increment();
