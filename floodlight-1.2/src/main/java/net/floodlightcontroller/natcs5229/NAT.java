@@ -239,7 +239,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		Ethernet frame = new Ethernet()
 				.setSourceMACAddress(eth.getSourceMACAddress())
-				.setDestinationMACAddress(eth.getDestinationMACAddress())
+				.setDestinationMACAddress(getMappedMACAddress(ip_pkt.getDestinationAddress(), eth.getDestinationMACAddress()))
 				.setEtherType(eth.getEtherType());
 
 		IPv4 pkt_out = new IPv4()
