@@ -428,7 +428,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			if(Long.parseLong(String.valueOf(pair.getValue()))+IcmpExpiryPeriod < currentTime){
 				logger.info("ICMP ID:  {}  needs to be removed!", pair.getValue().toString());
 			}
-			it.remove(); // avoids a ConcurrentModificationException
+			//it.remove(); // avoids a ConcurrentModificationException
 		}
 
 	}
