@@ -221,7 +221,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 		//eth.getDestinationMACAddress()
 		// push ARP reply out
-		pushPacket(arpReply, sw, OFBufferId.NO_BUFFER, OFPort.ANY, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)), cntx, true);
+		pushPacket(arpReply, sw, OFBufferId.NO_BUFFER, OFPort.ANY, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)),
+				cntx, true);
 		logger.info("Sending packet from {} with MAC Address {} with destination IP {} searching for MAC Address {}",
 				new Object[] {arpRequest.getSenderProtocolAddress(), eth.getSourceMACAddress(), arpRequest.getTargetProtocolAddress(),eth.getDestinationMACAddress()});
 		logger.info("proxy ARP reply pushed as {}", arpRequest.getSenderProtocolAddress().toString());
@@ -238,12 +239,12 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		IPv4Address srcAddress = ip_pkt.getSourceAddress();
 		ICMP icmp_packet = (ICMP) ip_pkt.getPayload();
 		String icmpIdentifier = getIdentifierFromPayload(icmp_packet.serialize());
-		OFPort defaultOutPort = pi.getInPort();
+		OFPort defaultOutPort = (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT));
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		boolean isNatted = ip_pkt.getSourceAddress() != getMappedNATAddress(ip_pkt.getSourceAddress().toString());
 
 		if (isNatted){
-			IcmpIdentifierMap.put(icmpIdentifier, pi.getInPort().toString());
+			IcmpIdentifierMap.put(icmpIdentifier, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)).toString());
 		}
 
 		if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
@@ -281,7 +282,8 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 
 		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-		pushPacketPi(serialized_data, sw, pi.getBufferId(), pi.getInPort(), getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort), cntx, true);
+		pushPacketPi(serialized_data, sw, pi.getBufferId(), (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)),
+				getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort), cntx, true);
 
 	}
 
