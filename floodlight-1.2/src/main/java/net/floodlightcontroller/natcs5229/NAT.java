@@ -241,7 +241,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		String icmpIdentifier = getIdentifierFromPayload(icmp_packet.serialize());
 		OFPort defaultOutPort = (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT));
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
-		boolean isNatted = ip_pkt.getSourceAddress() != getMappedNATAddress(ip_pkt.getSourceAddress().toString());
+		boolean isNatted = ip_pkt.getSourceAddress().toString() != getMappedNATAddress(ip_pkt.getSourceAddress().toString()).toString();
 
 		if (isNatted){
 			logger.info("True because {} is different to {} ", ip_pkt.getSourceAddress().toString(), getMappedNATAddress(ip_pkt.getSourceAddress().toString()));
