@@ -254,11 +254,11 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				.setChecksum(icmp_packet.getChecksum());
 
 		Data icmp_data = new Data()
-				.setData(ip_pkt.serialize());
+				.setData(icmp_packet.serialize());
 
 
-		icmp_out.setPayload(icmp_data);
-		pkt_out.setPayload(icmp_out);
+		//icmp_out.setPayload(icmp_data);
+		pkt_out.setPayload(icmp_packet);
 		frame.setPayload(pkt_out);
 		byte[] serialized_data = frame.serialize();
 
