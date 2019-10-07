@@ -244,7 +244,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		boolean isNatted = ip_pkt.getSourceAddress() != getMappedNATAddress(ip_pkt.getSourceAddress().toString());
 
 		if (isNatted){
-			logger.info("This request comes from a device in NAT, will be logging identifier in MAP");
+			logger.info("This request comes from a device in NAT with Address {}, will be logging identifier in MAP", ip_pkt.getSourceAddress().toString());
 			IcmpIdentifierMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
 		}else if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
 			logger.info("Request is not NATted, likely coming back, attempting to retrieve origin port");
