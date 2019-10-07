@@ -1,33 +1,23 @@
 package net.floodlightcontroller.natcs5229;
 
 import net.floodlightcontroller.core.FloodlightContext;
-import net.floodlightcontroller.core.IListener;
 import net.floodlightcontroller.core.IOFMessageListener;
 import net.floodlightcontroller.core.IOFSwitch;
 import net.floodlightcontroller.core.module.FloodlightModuleContext;
 import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
-import net.floodlightcontroller.core.util.AppCookie;
 import net.floodlightcontroller.packet.*;
-import net.floodlightcontroller.routing.IRoutingDecision;
-import net.floodlightcontroller.routing.Route;
-import net.floodlightcontroller.util.FlowModUtils;
-import org.kohsuke.args4j.CmdLineException;
 import org.projectfloodlight.openflow.protocol.*;
-import java.io.IOException;
+
 import java.util.*;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import java.util.concurrent.ConcurrentSkipListSet;
 import org.projectfloodlight.openflow.protocol.action.OFAction;
-import org.projectfloodlight.openflow.protocol.match.Match;
 import org.projectfloodlight.openflow.protocol.match.MatchField;
 import org.projectfloodlight.openflow.types.*;
-import org.python.modules._hashlib;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.crypto.Mac;
 
 
 /**
@@ -45,10 +35,11 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
     HashMap<String, OFPort> IPPortMap = new HashMap<>();
     HashMap<String, String> IPMacMap = new HashMap<>();
     HashMap<String, String> NATIPMap = new HashMap<>();
-    HashMap<String, String> IcmpIdentifierMap = new HashMap<>();
+    HashMap<String, String> IcmpIdentifierPortMap = new HashMap<>();
+	HashMap<String, String> IcmpIdentifierIPMap = new HashMap<>();
 
 
-    @Override
+	@Override
     public String getName() {
         return NAT.class.getName();
     }
@@ -241,17 +232,21 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		String icmpIdentifier = getIdentifierFromPayload(icmp_packet.serialize());
 		OFPort defaultOutPort = (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT));
 		OFPort outPort = defaultOutPort;
+		String natInboundIp = "";
 
 		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		boolean isNatted = NATIPMap.containsKey(ip_pkt.getSourceAddress().toString());
 
 		if (isNatted){
 			logger.info("Is natted because {} is in the NAT Map", ip_pkt.getSourceAddress().toString());
-			IcmpIdentifierMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
+			IcmpIdentifierPortMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
+			IcmpIdentifierIPMap.put(icmpIdentifier, ip_pkt.getSourceAddress().toString());
 			outPort = getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort);
-		}else if (IcmpIdentifierMap.containsKey(icmpIdentifier)){
+
+		}else if (IcmpIdentifierPortMap.containsKey(icmpIdentifier)){
 			logger.info("It is not Natted because {} is NOT in the NAT Map", ip_pkt.getSourceAddress().toString());
-			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierMap.get(icmpIdentifier)));
+			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierPortMap.get(icmpIdentifier)));
+			natInboundIp = IcmpIdentifierIPMap.get(icmpIdentifier);
 			outPort = defaultOutPort;
 		}
 
@@ -263,7 +258,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 		IPv4 pkt_out = new IPv4()
 				.setSourceAddress(getMappedNATAddress(ip_pkt.getSourceAddress().toString()))
-				.setDestinationAddress(ip_pkt.getDestinationAddress())
+				.setDestinationAddress(natInboundIp == "" ? ip_pkt.getDestinationAddress() : IPv4Address.of(natInboundIp))
 				.setTtl(ip_pkt.getTtl())
 				.setProtocol(ip_pkt.getProtocol());
 
@@ -271,9 +266,6 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				.setIcmpCode(icmp_packet.getIcmpCode())
 				.setIcmpType(icmp_packet.getIcmpType())
 				.setChecksum(icmp_packet.getChecksum());
-
-		Data icmp_data = new Data()
-				.setData(icmp_packet.serialize());
 
 		logger.info("ICMP Identifier: {}", icmpIdentifier);
 
