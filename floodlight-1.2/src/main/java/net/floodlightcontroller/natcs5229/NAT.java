@@ -319,7 +319,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 	protected OFPort getMappedIPPort(String ipAddressString, OFPort defaultPort){
 		OFPort resultPort = IPPortMap.containsKey(ipAddressString)?
-				IPPortMap.get(ipAddressString): OFPort.ANY;
+				IPPortMap.get(ipAddressString): defaultPort;
 		logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), ipAddressString);
 		return resultPort;
 	}
