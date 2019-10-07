@@ -19,6 +19,8 @@ import org.projectfloodlight.openflow.types.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.lang.System.currentTimeMillis;
+
 
 /**
  * Created by pravein on 28/9/17.
@@ -37,6 +39,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
     HashMap<String, String> NATIPMap = new HashMap<>();
     HashMap<String, String> IcmpIdentifierPortMap = new HashMap<>();
 	HashMap<String, String> IcmpIdentifierIPMap = new HashMap<>();
+	HashMap<String, Long> IcmpQueryTimer = new HashMap<>();
 
 
 	@Override
@@ -169,6 +172,13 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
         NATIPMap.put("192.168.0.10", "10.0.0.1");
 		NATIPMap.put("192.168.0.20", "10.0.0.1");
+
+		Timer timer = new Timer();
+		TimerTask task = new IcmpQueryDeleter();
+
+		timer.schedule(task, 1000, 1000);
+
+
 	}
 
     @Override
@@ -242,12 +252,14 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			logger.info("Is natted because {} is in the NAT Map", ip_pkt.getSourceAddress().toString());
 			IcmpIdentifierPortMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
 			IcmpIdentifierIPMap.put(icmpIdentifier, ip_pkt.getSourceAddress().toString());
+			IcmpQueryTimer.put(icmpIdentifier, currentTimeMillis());
 			outPort = getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort);
 
 		}else if (IcmpIdentifierPortMap.containsKey(icmpIdentifier)){
 			logger.info("It is not Natted because {} is NOT in the NAT Map", ip_pkt.getSourceAddress().toString());
 			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierPortMap.get(icmpIdentifier)));
 			natInboundIp = IcmpIdentifierIPMap.get(icmpIdentifier);
+			IcmpQueryTimer.put(icmpIdentifier, currentTimeMillis());
 			outPort = defaultOutPort;
 		}
 
@@ -407,9 +419,14 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		sw.write(pob.build());
 	}
 
-
-
-
+	class IcmpQueryDeleter extends TimerTask
+	{
+		public void run()
+		{
+			logger.info("Attempting to delete elements at time {}", currentTimeMillis());
+		}
+	}
 
 
 }
+
