@@ -44,6 +44,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
     HashMap<Integer, String> IPTransMap = new HashMap<>();
     HashMap<String, OFPort> IPPortMap = new HashMap<>();
     HashMap<String, String> IPMacMap = new HashMap<>();
+    HashMap<String, String> NATIPMap = new HashMap<>();
 
 
     @Override
@@ -173,7 +174,10 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
         IPMacMap.put("192.168.0.10", "00:00:00:00:00:01");
         IPMacMap.put("192.168.0.20", "00:00:00:00:00:02");
         IPMacMap.put("10.0.0.11", "00:00:00:00:00:03");
-    }
+
+        NATIPMap.put("192.168.0.10", "10.0.0.1");
+		NATIPMap.put("192.168.0.20", "10.0.0.1");
+	}
 
     @Override
     public void startUp(FloodlightModuleContext context) throws FloodlightModuleException {
@@ -232,14 +236,14 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		IPv4Address dstAddress = ip_pkt.getDestinationAddress();
 		IPv4Address srcAddress = ip_pkt.getSourceAddress();
 		ICMP icmp_packet = (ICMP) ip_pkt.getPayload();
-
+		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		Ethernet frame = new Ethernet()
 				.setSourceMACAddress(eth.getSourceMACAddress())
 				.setDestinationMACAddress(eth.getDestinationMACAddress())
 				.setEtherType(eth.getEtherType());
 
 		IPv4 pkt_out = new IPv4()
-				.setSourceAddress(ip_pkt.getSourceAddress())
+				.setSourceAddress(getMappedNATAddress(ip_pkt.getSourceAddress().toString()))
 				.setDestinationAddress(ip_pkt.getDestinationAddress())
 				.setTtl(ip_pkt.getTtl())
 				.setProtocol(ip_pkt.getProtocol());
@@ -279,6 +283,12 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				IPPortMap.get(portAddress): OFPort.ANY;
 		logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), portAddress);
 		return resultPort;
+	}
+
+	protected IPv4Address getMappedNATAddress(String ipAddress){
+		IPv4Address resultIp = NATIPMap.containsKey(ipAddress)?
+				IPv4Address.of(NATIPMap.get(ipAddress)): IPv4Address.of(ipAddress);
+		return resultIp;
 	}
 
 	/**
