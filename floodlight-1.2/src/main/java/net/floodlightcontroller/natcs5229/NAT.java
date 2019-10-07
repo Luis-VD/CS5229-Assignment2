@@ -73,11 +73,11 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			IPv4Address targetProtocolAddress = arpRequest.getTargetProtocolAddress();
 			String srcIp = arpRequest.getSenderProtocolAddress().toString();
 
-			logger.info("Getting ARP for: " + targetProtocolAddress.toString());
+			//logger.info("Getting ARP for: " + targetProtocolAddress.toString());
 
-			logger.info("Requestor : " + srcIp + " from : " + pi.getMatch().get(MatchField.IN_PORT).getPortNumber());
+			//logger.info("Requestor : " + srcIp + " from : " + pi.getMatch().get(MatchField.IN_PORT).getPortNumber());
 
-			logger.info("Asking for : "+ arpRequest.getTargetProtocolAddress());
+			//logger.info("Asking for : "+ arpRequest.getTargetProtocolAddress());
 
 			proxyArpReply(sw, pi, cntx);
 			return Command.STOP;
@@ -91,7 +91,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 			
 			byte[] ipOptions = ip_pkt.getOptions();
 			IPv4Address dstIp = ip_pkt.getDestinationAddress();
-			logger.info("This packet is type IPv4 with destination: "+dstIp);
+			//logger.info("This packet is type IPv4 with destination: "+dstIp);
 			if (ip_pkt.getProtocol() == IpProtocol.TCP) {
 				TCP tcp = (TCP) ip_pkt.getPayload();
 				/* Various getters and setters are exposed in TCP */
@@ -177,7 +177,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		Timer timer = new Timer();
 		TimerTask task = new IcmpQueryDeleter();
 
-		timer.schedule(task, 1000, 1000);
+		timer.schedule(task, 1000, 2000);
 
 
 	}
@@ -225,9 +225,9 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		// push ARP reply out
 		pushPacket(arpReply, sw, OFBufferId.NO_BUFFER, OFPort.ANY, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)),
 				cntx, true);
-		logger.info("Sending packet from {} with MAC Address {} with destination IP {} searching for MAC Address {}",
-				new Object[] {arpRequest.getSenderProtocolAddress(), eth.getSourceMACAddress(), arpRequest.getTargetProtocolAddress(),eth.getDestinationMACAddress()});
-		logger.info("proxy ARP reply pushed as {}", arpRequest.getSenderProtocolAddress().toString());
+		//logger.info("Sending packet from {} with MAC Address {} with destination IP {} searching for MAC Address {}",
+				//new Object[] {arpRequest.getSenderProtocolAddress(), eth.getSourceMACAddress(), arpRequest.getTargetProtocolAddress(),eth.getDestinationMACAddress()});
+		//logger.info("proxy ARP reply pushed as {}", arpRequest.getSenderProtocolAddress().toString());
 
 	}
 
@@ -246,18 +246,18 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		String natInboundIp = "";
 		String natInboundMac = "";
 
-		logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
+		//logger.info("Packet comes from MAC Address {} to MAC Address {}", eth.getSourceMACAddress().toString(), eth.getDestinationMACAddress().toString());
 		boolean isNatted = NATIPMap.containsKey(ip_pkt.getSourceAddress().toString());
 
 		if (isNatted){
-			logger.info("Is natted because {} is in the NAT Map", ip_pkt.getSourceAddress().toString());
+			//logger.info("Is natted because {} is in the NAT Map", ip_pkt.getSourceAddress().toString());
 			IcmpIdentifierPortMap.put(icmpIdentifier, getMappedIPPort(ip_pkt.getSourceAddress().toString(), defaultOutPort).toString());
 			IcmpIdentifierIPMap.put(icmpIdentifier, ip_pkt.getSourceAddress().toString());
 			IcmpQueryTimer.put(icmpIdentifier, currentTimeMillis());
 			outPort = getMappedIPPort(ip_pkt.getDestinationAddress().toString(), defaultOutPort);
 
 		}else if (IcmpIdentifierPortMap.containsKey(icmpIdentifier)){
-			logger.info("It is not Natted because {} is NOT in the NAT Map", ip_pkt.getSourceAddress().toString());
+			//logger.info("It is not Natted because {} is NOT in the NAT Map", ip_pkt.getSourceAddress().toString());
 			defaultOutPort = OFPort.of(Integer.valueOf(IcmpIdentifierPortMap.get(icmpIdentifier)));
 			natInboundIp = IcmpIdentifierIPMap.get(icmpIdentifier);
 			IcmpQueryTimer.put(icmpIdentifier, currentTimeMillis());
@@ -281,7 +281,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 				.setIcmpType(icmp_packet.getIcmpType())
 				.setChecksum(icmp_packet.getChecksum());
 
-		logger.info("ICMP Identifier: {}", icmpIdentifier);
+		//logger.info("ICMP Identifier: {}", icmpIdentifier);
 
 
 		//icmp_out.setPayload(icmp_data);
@@ -291,7 +291,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 
 
 
-		logger.info("ICMP Package received from Origin: {} to Destination: {}", new Object[] {srcAddress, dstAddress});
+		//logger.info("ICMP Package received from Origin: {} to Destination: {}", new Object[] {srcAddress, dstAddress});
 		pushPacketPi(serialized_data, sw, pi.getBufferId(), (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)),
 				outPort, cntx, true);
 
@@ -302,7 +302,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		String macAddressString = RouterInterfaceMacMap.containsKey(addressString)?
 				RouterInterfaceMacMap.get(addressString) : defaultMacAddress.toString();
 		MacAddress resultAddress = MacAddress.of(macAddressString);
-		logger.info("Interface Mac Address Returned: {}", resultAddress.toString());
+		//logger.info("Interface Mac Address Returned: {}", resultAddress.toString());
 		return resultAddress;
 	}
 
@@ -323,14 +323,14 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		String macAddressString = IPMacMap.containsKey(addressString)?
 				IPMacMap.get(addressString) : defaultMacAddress.toString();
 		MacAddress resultAddress = MacAddress.of(macAddressString);
-		logger.info("IP Mac Address Returned: {}", resultAddress.toString());
+		//logger.info("IP Mac Address Returned: {}", resultAddress.toString());
 		return resultAddress;
 	}
 
 	protected OFPort getMappedIPPort(String ipAddressString, OFPort defaultPort){
 		OFPort resultPort = IPPortMap.containsKey(ipAddressString)?
 				IPPortMap.get(ipAddressString): defaultPort;
-		logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), ipAddressString);
+		//logger.info("Port Returned: {} correspondent to address: {}", resultPort.toString(), ipAddressString);
 		return resultPort;
 	}
 
@@ -382,7 +382,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		}
 
 		//counterPacketOut.increment();
-		logger.info("Wrote packet to switch");
+		//logger.info("Wrote packet to switch");
 		sw.write(pob.build());
 	}
 
@@ -416,7 +416,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		}
 
 		//counterPacketOut.increment();
-		logger.info("Wrote packet to switch");
+		//logger.info("Wrote packet to switch");
 		sw.write(pob.build());
 	}
 
@@ -424,7 +424,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		Iterator it = IcmpQueryTimer.entrySet().iterator();
 		while (it.hasNext()) {
 			Map.Entry pair = (Map.Entry)it.next();
-			//logger.info(pair.getKey() + " = " + pair.getValue());
+			logger.info(pair.getKey() + " = " + pair.getValue());
 			if(Long.parseLong(String.valueOf(pair.getValue()))+IcmpExpiryPeriod < currentTime){
 				logger.info("ICMP ID:  {}  needs to be removed!", pair.getValue().toString());
 			}
