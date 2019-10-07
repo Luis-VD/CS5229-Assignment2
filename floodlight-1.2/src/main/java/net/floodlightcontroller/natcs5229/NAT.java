@@ -40,6 +40,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
     HashMap<String, String> IcmpIdentifierPortMap = new HashMap<>();
 	HashMap<String, String> IcmpIdentifierIPMap = new HashMap<>();
 	HashMap<String, Long> IcmpQueryTimer = new HashMap<>();
+	Long IcmpExpiryPeriod = Long.valueOf(5000);
 
 
 	@Override
@@ -419,11 +420,25 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		sw.write(pob.build());
 	}
 
+	protected void deleteExpiredIcmpQueries(long currentTime){
+		Iterator it = IcmpQueryTimer.entrySet().iterator();
+		while (it.hasNext()) {
+			Map.Entry pair = (Map.Entry)it.next();
+			//logger.info(pair.getKey() + " = " + pair.getValue());
+			if(Long.parseLong(String.valueOf(pair.getValue()))+IcmpExpiryPeriod < currentTime){
+				logger.info("ICMP ID:  {}  needs to be removed!", pair.getValue().toString());
+			}
+			it.remove(); // avoids a ConcurrentModificationException
+		}
+
+	}
+
 	class IcmpQueryDeleter extends TimerTask
 	{
 		public void run()
 		{
-			logger.info("Attempting to delete elements at time {}", currentTimeMillis());
+			deleteExpiredIcmpQueries(currentTimeMillis());
+			//logger.info("Attempting to delete elements at time {}", currentTimeMillis());
 		}
 	}
 
