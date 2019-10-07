@@ -230,11 +230,9 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		IPv4 ip_pkt = (IPv4) pkt;
 		IPv4Address dstAddress = ip_pkt.getDestinationAddress();
 		IPv4Address srcAddress = ip_pkt.getSourceAddress();
-		boolean isICMP = ip_pkt.getProtocol() == IpProtocol.ICMP;
 
-		logger.info("Is this packet ICMP?: {}", isICMP);
 		logger.info("ICMP Package received from Address: {} to Address: {}", new Object[] {srcAddress, dstAddress});
-		pushPacket(pkt, sw, pi.getBufferId(), getMappedIPPort(ip_pkt.getSourceAddress().toString()), getMappedIPPort(ip_pkt.getDestinationAddress().toString()), cntx, true);
+		pushPacket(pkt, sw, OFBufferId.NO_BUFFER, OFPort.ANY, (pi.getVersion().compareTo(OFVersion.OF_12) < 0 ? pi.getInPort() : pi.getMatch().get(MatchField.IN_PORT)), cntx, true);
 
 	}
 
@@ -296,7 +294,7 @@ public class NAT implements IOFMessageListener, IFloodlightModule {
 		}
 
 		//counterPacketOut.increment();
-		logger.info("Wrote packet {} to switch", pob.build());
+		logger.info("Wrote packet to switch");
 		sw.write(pob.build());
 	}
 
